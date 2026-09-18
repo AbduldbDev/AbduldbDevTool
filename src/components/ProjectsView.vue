@@ -5,12 +5,15 @@ import { useStore } from "../store/useStore.js";
 import { openInVSCode, openGitCli } from "../lib/tauri.js";
 import ProjectCard from "./ProjectCard.vue";
 import AddProjectModal from "./AddProjectModal.vue";
+import EditProjectModal from "./EditProjectModal.vue";
 import DeleteConfirmModal from "./DeleteConfirmModal.vue";
 
 const emit = defineEmits(["navigate"]);
-const { state, addProject, updateProjectStatus, deleteProject } = useStore();
+const { state, addProject, updateProject, updateProjectStatus, deleteProject } =
+  useStore();
 
 const showAddModal = ref(false);
+const editingProject = ref(null);
 const deletingProject = ref(null);
 const searchQuery = ref("");
 
@@ -28,6 +31,11 @@ const visibleProjects = computed(() => {
 function handleSave(payload) {
   addProject(payload);
   showAddModal.value = false;
+}
+
+function handleEditSave(payload) {
+  updateProject(editingProject.value.id, payload);
+  editingProject.value = null;
 }
 
 async function handleOpenVSCode(project) {
@@ -54,9 +62,15 @@ function confirmDelete(project) {
   deletingProject.value = project;
 }
 
-function onDeleted() {
-  deleteProject(deletingProject.value.id);
-  deletingProject.value = null;
+async function onDeleted() {
+  try {
+    await deleteProject(deletingProject.value.id);
+  } catch (err) {
+    console.error(err);
+    alert(`Couldn't delete "${deletingProject.value.name}" from disk.`);
+  } finally {
+    deletingProject.value = null;
+  }
 }
 </script>
 
@@ -111,6 +125,7 @@ function onDeleted() {
         @open-vscode="handleOpenVSCode(project)"
         @open-git="handleOpenGit(project)"
         @delete="confirmDelete(project)"
+        @edit="editingProject = project"
         @status-change="(s) => updateProjectStatus(project.id, s)"
       />
     </div>
@@ -119,6 +134,13 @@ function onDeleted() {
       v-if="showAddModal"
       @close="showAddModal = false"
       @save="handleSave"
+    />
+
+    <EditProjectModal
+      v-if="editingProject"
+      :project="editingProject"
+      @close="editingProject = null"
+      @save="handleEditSave"
     />
 
     <DeleteConfirmModal
@@ -135,6 +157,7 @@ function onDeleted() {
   padding: 0px 32px;
   height: 100%;
   overflow-y: auto;
+  padding-bottom: 50px;
 }
 
 .view-header {

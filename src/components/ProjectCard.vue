@@ -1,6 +1,12 @@
 <script setup>
 import { computed } from "vue";
-import { FolderGit2, FolderCode, Trash2, Folder } from "lucide-vue-next";
+import {
+  FolderGit2,
+  FolderCode,
+  Trash2,
+  Folder,
+  Pencil,
+} from "lucide-vue-next";
 import { STATUS_OPTIONS } from "../store/useStore.js";
 
 const props = defineProps({
@@ -12,6 +18,7 @@ const emit = defineEmits([
   "open-git",
   "delete",
   "status-change",
+  "edit",
 ]);
 
 const statusColors = {
@@ -39,14 +46,12 @@ const accent = computed(
     <div class="body">
       <h3 class="name" :title="project.name">{{ project.name }}</h3>
       <p class="path mono" :title="project.path">{{ project.path }}</p>
-
-      <select
-        class="status-select"
-        :value="project.status"
-        @change="emit('status-change', $event.target.value)"
+      <span
+        class="status-badge"
+        :style="{ borderColor: accent, color: accent }"
       >
-        <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ s }}</option>
-      </select>
+        {{ project.status }}
+      </span>
     </div>
 
     <div class="actions">
@@ -55,14 +60,14 @@ const accent = computed(
         title="Open in VS Code"
         @click="emit('open-vscode')"
       >
-        <FolderCode :size="16" />
+        <img src="../assets/vscode.svg" alt="VS Code" width="16" height="16" />
       </button>
       <button
         class="icon-btn"
         title="Open Git CLI here"
         @click="emit('open-git')"
       >
-        <FolderGit2 :size="16" />
+        <img src="../assets/git.svg" alt="Git" width="16" height="16" />
       </button>
       <button
         class="icon-btn danger delete"
@@ -70,6 +75,9 @@ const accent = computed(
         @click="emit('delete')"
       >
         <Trash2 :size="16" />
+      </button>
+      <button class="icon-btn" title="Edit project" @click="emit('edit')">
+        <Pencil :size="16" />
       </button>
     </div>
   </article>
@@ -87,6 +95,14 @@ const accent = computed(
   transition:
     border-color 0.15s ease,
     transform 0.15s ease;
+}
+.status-badge {
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  width: fit-content;
 }
 
 .card:hover {

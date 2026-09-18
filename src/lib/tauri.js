@@ -72,6 +72,9 @@ export async function openTool(exePath, cwd = null) {
   return invoke("open_tool", { exePath, cwd });
 }
 
+export async function deleteProjectFolder(path) {
+  return invoke("delete_project_folder", { path });
+}
 /** Joins a folder name onto a base path, matching the base path's separator style. */
 function joinPath(base, name) {
   const sep = base.includes("\\") && !base.includes("/") ? "\\" : "/";

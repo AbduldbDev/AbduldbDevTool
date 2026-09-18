@@ -1,11 +1,7 @@
 // Prevents an additional console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
+use std::fs;
 use std::process::Command;
-
-/// Opens the given folder in VS Code, using the `code` CLI.
-/// Requires the "code" command to be available on PATH
-/// (VS Code -> Command Palette -> "Shell Command: Install 'code' command in PATH").
 #[tauri::command]
 fn open_in_vscode(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -19,10 +15,15 @@ fn open_in_vscode(path: String) -> Result<(), String> {
         .map_err(|e| format!("Failed to open VS Code: {e}"))
 }
 
+
+#[tauri::command]
+fn delete_project_folder(path: String) -> Result<(), String> {
+    fs::remove_dir_all(&path).map_err(|e| e.to_string())
+}
+
 /// Opens a terminal window rooted at `path`. Git commands work here as long as
 /// Git is installed and available on PATH.
 #[tauri::command]
-
 fn open_git_cli(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
 {
@@ -86,7 +87,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_in_vscode,
             open_git_cli,
-            open_tool
+            open_tool,
+            delete_project_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

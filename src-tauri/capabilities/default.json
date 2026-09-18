@@ -8,7 +8,15 @@
     "dialog:default",
     "fs:default",
     {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "**" }]
+    },
+    {
       "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
       "allow": [{ "path": "**" }]
     }
   ]

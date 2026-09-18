@@ -1,4 +1,5 @@
 import { reactive, watch } from "vue";
+import { deleteProjectFolder } from "../lib/tauri.js";
 
 const STORAGE_KEYS = {
   projects: "abduldbdev_projects",
@@ -6,7 +7,13 @@ const STORAGE_KEYS = {
   rootFolders: "abduldbdev_root_folders",
 };
 
-export const STATUS_OPTIONS = ["Active", "In Progress", "On Hold", "Completed", "Archived"];
+export const STATUS_OPTIONS = [
+  "Active",
+  "In Progress",
+  "On Hold",
+  "Completed",
+  "Archived",
+];
 
 function load(key, fallback) {
   try {
@@ -28,19 +35,19 @@ const state = reactive({
 watch(
   () => state.projects,
   (val) => localStorage.setItem(STORAGE_KEYS.projects, JSON.stringify(val)),
-  { deep: true }
+  { deep: true },
 );
 
 watch(
   () => state.tools,
   (val) => localStorage.setItem(STORAGE_KEYS.tools, JSON.stringify(val)),
-  { deep: true }
+  { deep: true },
 );
 
 watch(
   () => state.rootFolders,
   (val) => localStorage.setItem(STORAGE_KEYS.rootFolders, JSON.stringify(val)),
-  { deep: true }
+  { deep: true },
 );
 
 function uid() {
@@ -49,7 +56,13 @@ function uid() {
 
 export function useStore() {
   // ---- Projects ----
-  function addProject({ name, path, image = null, status = "Active", source = null }) {
+  function addProject({
+    name,
+    path,
+    image = null,
+    status = "Active",
+    source = null,
+  }) {
     state.projects.unshift({
       id: uid(),
       name,
@@ -71,11 +84,15 @@ export function useStore() {
     if (project) Object.assign(project, patch);
   }
 
-  function deleteProject(id) {
+  async function deleteProject(id) {
+    const project = state.projects.find((p) => p.id === id);
+    if (!project) return;
+
+    await deleteProjectFolder(project.path);
+
     const idx = state.projects.findIndex((p) => p.id === id);
     if (idx !== -1) state.projects.splice(idx, 1);
   }
-
   // ---- Tools ----
   function addTool({ name, exePath, icon = null }) {
     state.tools.push({ id: uid(), name, exePath, icon });
