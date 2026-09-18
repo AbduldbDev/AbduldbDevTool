@@ -1,0 +1,136 @@
+<script setup>
+import { ref } from "vue";
+import { FolderOpen, ImagePlus } from "lucide-vue-next";
+import { pickFolder, pickImage, fileToDataUrl } from "../lib/tauri.js";
+import { STATUS_OPTIONS } from "../store/useStore.js";
+
+const emit = defineEmits(["close", "save"]);
+
+const name = ref("");
+const path = ref("");
+const status = ref("Active");
+const imageDataUrl = ref(null);
+const busy = ref(false);
+const error = ref("");
+
+function folderNameFromPath(p) {
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+
+async function choosePath() {
+  const chosen = await pickFolder();
+  if (chosen) {
+    path.value = chosen;
+    if (!name.value) name.value = folderNameFromPath(chosen);
+  }
+}
+
+async function chooseImage() {
+  const chosen = await pickImage();
+  if (chosen) {
+    try {
+      busy.value = true;
+      imageDataUrl.value = await fileToDataUrl(chosen);
+    } catch (err) {
+      console.error(err);
+      error.value = "Couldn't read that image.";
+    } finally {
+      busy.value = false;
+    }
+  }
+}
+
+function save() {
+  error.value = "";
+  if (!name.value.trim()) {
+    error.value = "Give the project a name.";
+    return;
+  }
+  if (!path.value.trim()) {
+    error.value = "Choose the project's folder.";
+    return;
+  }
+  emit("save", {
+    name: name.value.trim(),
+    path: path.value.trim(),
+    status: status.value,
+    image: imageDataUrl.value,
+  });
+}
+</script>
+
+<template>
+  <div class="modal-backdrop" @mousedown.self="emit('close')">
+    <div class="modal-panel">
+      <h2 class="modal-title">Add project</h2>
+      <p class="modal-subtitle">Point it at a project folder and it'll show up on your board.</p>
+
+      <div class="field">
+        <label>Project folder</label>
+        <button class="btn path-btn" @click="choosePath">
+          <FolderOpen :size="15" />
+          <span class="mono">{{ path || "Choose folder…" }}</span>
+        </button>
+      </div>
+
+      <div class="field">
+        <label>Name</label>
+        <input v-model="name" type="text" placeholder="My Project" />
+      </div>
+
+      <div class="field">
+        <label>Status</label>
+        <select v-model="status">
+          <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Cover image (optional)</label>
+        <button class="btn path-btn" @click="chooseImage" :disabled="busy">
+          <ImagePlus :size="15" />
+          <span>{{ imageDataUrl ? "Image selected" : "Choose image…" }}</span>
+        </button>
+        <img v-if="imageDataUrl" :src="imageDataUrl" class="preview" alt="" />
+      </div>
+
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" @click="emit('close')">Cancel</button>
+        <button class="btn btn-primary" @click="save">Add project</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.path-btn {
+  width: 100%;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.path-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview {
+  margin-top: 8px;
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin-top: -4px;
+  margin-bottom: 8px;
+}
+</style>
