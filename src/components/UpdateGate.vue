@@ -52,7 +52,7 @@ async function doInstall() {
 
 <template>
   <div v-if="checking" class="update-gate-screen">
-    <p class="update-gate-status">Checking for updates...</p>
+    <p class="update-gate-status">Checking for update...</p>
   </div>
   <div v-else-if="updateRequired" class="update-gate-screen">
     <div class="update-gate-card">
