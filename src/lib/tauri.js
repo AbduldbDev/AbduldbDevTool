@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readFile, readDir } from "@tauri-apps/plugin-fs";
+import { readFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 /** Open a native "select folder" dialog. Returns the chosen path or null. */
@@ -21,6 +21,34 @@ export async function pickImage() {
     ],
   });
   return typeof result === "string" ? result : null;
+}
+
+/** Copies an image file to a target directory and returns the path to the copied file */
+export async function copyImageToLocal(imagePath, targetDir) {
+  const result = await invoke("copy_image_to_folder", {
+    imagePath,
+    targetDir,
+  });
+
+  // Return the file path (to be stored in localStorage)
+  return result;
+}
+
+/** Converts a file path to a base64 data URL for display */
+export async function imagePathToDataUrl(path) {
+  try {
+    const bytes = await readFile(path);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    const base64 = btoa(binary);
+    return `data:image/png;base64,${base64}`;
+  } catch (err) {
+    console.error("Failed to read image file:", err);
+    return null;
+  }
 }
 
 /** Open a native "select executable" dialog. Returns the chosen path or null. */

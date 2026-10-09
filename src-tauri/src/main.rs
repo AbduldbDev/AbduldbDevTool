@@ -1,7 +1,9 @@
 // Prevents an additional console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
+use chrono::Utc;
 #[tauri::command]
 fn open_in_vscode(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -101,6 +103,22 @@ fn open_in_explorer(path: String) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[tauri::command]
+fn copy_image_to_folder(image_path: String, target_dir: String) -> Result<String, String> {
+    // Ensure target directory exists
+    fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+    
+    // Generate unique filename
+    let filename = format!("project_{}.png", Utc::now().timestamp_millis());
+    let mut target_path = PathBuf::from(&target_dir);
+    target_path.push(&filename);
+    
+    // Copy the image
+    fs::copy(&image_path, &target_path).map_err(|e| e.to_string())?;
+    
+    Ok(target_path.to_str().ok_or("Invalid path")?.to_string())
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -110,7 +128,8 @@ fn main() {
             open_git_cli,
             open_tool,
             delete_project_folder,
-            open_in_explorer 
+            open_in_explorer,
+            copy_image_to_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

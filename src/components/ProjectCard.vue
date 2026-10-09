@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, onMounted } from "vue";
 import {
   FolderGit2,
   FolderCode,
@@ -7,6 +7,7 @@ import {
   Folder,
   Pencil,
 } from "lucide-vue-next";
+import { imagePathToDataUrl } from "../lib/tauri.js";
 import { STATUS_OPTIONS } from "../store/useStore.js";
 
 const props = defineProps({
@@ -31,12 +32,29 @@ const statusColors = {
 const accent = computed(
   () => statusColors[props.project.status] || "var(--text-faint)",
 );
+const imageSrc = ref("");
+
+// Convert file path to data URL if needed
+onMounted(async () => {
+  if (props.project.image) {
+    // Check if it's already a data URL or a file path
+    if (props.project.image.startsWith("data:")) {
+      imageSrc.value = props.project.image;
+    } else {
+      // It's a file path, convert to base64
+      const dataUrl = await imagePathToDataUrl(props.project.image);
+      if (dataUrl) {
+        imageSrc.value = dataUrl;
+      }
+    }
+  }
+});
 </script>
 
 <template>
   <article class="card" :style="{ '--accent': accent }">
     <div class="thumb">
-      <img v-if="project.image" :src="project.image" alt="" />
+      <img v-if="imageSrc" :src="imageSrc" alt="" />
       <div v-else class="thumb-placeholder">
         <Folder :size="26" />
       </div>

@@ -1,7 +1,12 @@
 <script setup>
 import { ref } from "vue";
 import { FolderOpen, ImagePlus, X } from "lucide-vue-next";
-import { pickFolder, pickImage, fileToDataUrl } from "../lib/tauri.js";
+import {
+  pickFolder,
+  pickImage,
+  copyImageToLocal,
+  imagePathToDataUrl,
+} from "../lib/tauri.js";
 import { STATUS_OPTIONS } from "../store/useStore.js";
 
 const props = defineProps({
@@ -12,9 +17,10 @@ const emit = defineEmits(["close", "save"]);
 const name = ref(props.project.name);
 const path = ref(props.project.path);
 const status = ref(props.project.status);
-const imageDataUrl = ref(props.project.image || null);
+const imageLocalPath = ref(props.project.image || null);
 const busy = ref(false);
 const error = ref("");
+const imagePreview = ref(null);
 
 async function choosePath() {
   const chosen = await pickFolder();
@@ -26,10 +32,15 @@ async function chooseImage() {
   if (chosen) {
     try {
       busy.value = true;
-      imageDataUrl.value = await fileToDataUrl(chosen);
+      // Copy image to a local assets folder in the selected project path
+      const assetsDir = `${path.value}\\assets`;
+      const imagePath = await copyImageToLocal(chosen, assetsDir);
+      imageLocalPath.value = imagePath;
+      // Convert to base64 for display
+      imagePreview.value = await imagePathToDataUrl(imagePath);
     } catch (err) {
       console.error(err);
-      error.value = "Couldn't read that image.";
+      error.value = "Couldn't copy that image.";
     } finally {
       busy.value = false;
     }
@@ -37,7 +48,7 @@ async function chooseImage() {
 }
 
 function removeImage() {
-  imageDataUrl.value = null;
+  imageLocalPath.value = null;
 }
 
 function save() {
@@ -54,7 +65,7 @@ function save() {
     name: name.value.trim(),
     path: path.value.trim(),
     status: status.value,
-    image: imageDataUrl.value,
+    image: imageLocalPath.value,
   });
 }
 </script>
@@ -63,19 +74,25 @@ function save() {
   <div class="modal-backdrop" @mousedown.self="emit('close')">
     <div class="modal-panel">
       <h2 class="modal-title">Edit project</h2>
-      <p class="modal-subtitle">Update its cover image, name, folder or status.</p>
+      <p class="modal-subtitle">
+        Update its cover image, name, folder or status.
+      </p>
 
       <div class="field">
         <label>Cover image</label>
-        <div v-if="imageDataUrl" class="preview-wrap">
-          <img :src="imageDataUrl" class="preview" alt="" />
-          <button class="icon-btn danger remove-image" title="Remove image" @click="removeImage">
+        <div v-if="imagePreview" class="preview-wrap">
+          <img :src="imagePreview" class="preview" alt="" />
+          <button
+            class="icon-btn danger remove-image"
+            title="Remove image"
+            @click="removeImage"
+          >
             <X :size="14" />
           </button>
         </div>
         <button class="btn path-btn" @click="chooseImage" :disabled="busy">
           <ImagePlus :size="15" />
-          <span>{{ imageDataUrl ? "Change image…" : "Choose image…" }}</span>
+          <span>{{ imageLocalPath ? "Change image…" : "Choose image…" }}</span>
         </button>
       </div>
 
@@ -95,7 +112,9 @@ function save() {
       <div class="field">
         <label>Status</label>
         <select v-model="status">
-          <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ s }}</option>
+          <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">
+            {{ s }}
+          </option>
         </select>
       </div>
 

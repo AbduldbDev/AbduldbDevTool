@@ -1,7 +1,12 @@
 <script setup>
 import { ref } from "vue";
 import { FolderOpen, ImagePlus } from "lucide-vue-next";
-import { pickFolder, pickImage, fileToDataUrl } from "../lib/tauri.js";
+import {
+  pickFolder,
+  pickImage,
+  copyImageToLocal,
+  imagePathToDataUrl,
+} from "../lib/tauri.js";
 import { STATUS_OPTIONS } from "../store/useStore.js";
 
 const emit = defineEmits(["close", "save"]);
@@ -9,9 +14,10 @@ const emit = defineEmits(["close", "save"]);
 const name = ref("");
 const path = ref("");
 const status = ref("Active");
-const imageDataUrl = ref(null);
+const imageLocalPath = ref("");
 const busy = ref(false);
 const error = ref("");
+const imagePreview = ref(null);
 
 function folderNameFromPath(p) {
   const parts = p.split(/[\\/]/).filter(Boolean);
@@ -31,10 +37,15 @@ async function chooseImage() {
   if (chosen) {
     try {
       busy.value = true;
-      imageDataUrl.value = await fileToDataUrl(chosen);
+      // Copy image to a local assets folder in the selected project path
+      const assetsDir = `${path.value}\\assets`;
+      const imagePath = await copyImageToLocal(chosen, assetsDir);
+      imageLocalPath.value = imagePath;
+      // Convert to base64 for display
+      imagePreview.value = await imagePathToDataUrl(imagePath);
     } catch (err) {
       console.error(err);
-      error.value = "Couldn't read that image.";
+      error.value = "Couldn't copy that image.";
     } finally {
       busy.value = false;
     }
@@ -55,7 +66,7 @@ function save() {
     name: name.value.trim(),
     path: path.value.trim(),
     status: status.value,
-    image: imageDataUrl.value,
+    image: imageLocalPath.value || null,
   });
 }
 </script>
@@ -64,7 +75,9 @@ function save() {
   <div class="modal-backdrop" @mousedown.self="emit('close')">
     <div class="modal-panel">
       <h2 class="modal-title">Add project</h2>
-      <p class="modal-subtitle">Point it at a project folder and it'll show up on your board.</p>
+      <p class="modal-subtitle">
+        Point it at a project folder and it'll show up on your board.
+      </p>
 
       <div class="field">
         <label>Project folder</label>
@@ -82,7 +95,9 @@ function save() {
       <div class="field">
         <label>Status</label>
         <select v-model="status">
-          <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ s }}</option>
+          <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">
+            {{ s }}
+          </option>
         </select>
       </div>
 
@@ -90,9 +105,9 @@ function save() {
         <label>Cover image (optional)</label>
         <button class="btn path-btn" @click="chooseImage" :disabled="busy">
           <ImagePlus :size="15" />
-          <span>{{ imageDataUrl ? "Image selected" : "Choose image…" }}</span>
+          <span>{{ imageLocalPath ? "Image selected" : "Choose image…" }}</span>
         </button>
-        <img v-if="imageDataUrl" :src="imageDataUrl" class="preview" alt="" />
+        <img v-if="imagePreview" :src="imagePreview" class="preview" alt="" />
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
