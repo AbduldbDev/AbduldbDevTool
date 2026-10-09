@@ -1,7 +1,11 @@
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/tauri";
+import { open } from "@tauri-apps/api/dialog";
+import {
+  readBinaryFile,
+  writeBinaryFile,
+  createDir,
+  readDir,
+} from "@tauri-apps/api/fs";
 
 /** Open a native "select folder" dialog. Returns the chosen path or null. */
 export async function pickFolder() {
@@ -23,41 +27,39 @@ export async function pickImage() {
   return typeof result === "string" ? result : null;
 }
 
-/** Copies an image file to a target directory and returns the path to the copied file */
-export async function copyImageToLocal(imagePath, targetDir) {
-  const result = await invoke("copy_image_to_folder", {
-    imagePath,
-    targetDir,
-  });
-
-  // Return the file path (to be stored in localStorage)
-  return result;
-}
-
-/** Converts a file path to a base64 data URL for display */
-export async function imagePathToDataUrl(path) {
-  try {
-    const bytes = await readFile(path);
-    let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-    const base64 = btoa(binary);
-    return `data:image/png;base64,${base64}`;
-  } catch (err) {
-    console.error("Failed to read image file:", err);
-    return null;
-  }
-}
-
 /** Open a native "select executable" dialog. Returns the chosen path or null. */
 export async function pickExecutable() {
-  const filters = navigator.platform.toLowerCase().includes("win")
-    ? [{ name: "Executable", extensions: ["exe", "bat", "cmd"] }]
-    : [{ name: "Executable", extensions: ["*"] }];
-  const result = await open({ multiple: false, filters });
+  const result = await open({
+    multiple: false,
+    filters: navigator.platform.toLowerCase().includes("win")
+      ? [{ name: "Executable", extensions: ["exe", "bat", "cmd"] }]
+      : [],
+  });
   return typeof result === "string" ? result : null;
+}
+
+/** Joins a name onto a base path, matching the base path's separator style. */
+function joinPath(base, name) {
+  const sep = base.includes("\\") && !base.includes("/") ? "\\" : "/";
+  const trimmed =
+    base.endsWith("/") || base.endsWith("\\") ? base.slice(0, -1) : base;
+  return `${trimmed}${sep}${name}`;
+}
+
+/** Copies an image file into targetDir and returns the path of the copy. */
+export async function copyImageToLocal(imagePath, targetDir) {
+  const ext = (imagePath.split(".").pop() || "png").toLowerCase();
+  const targetPath = joinPath(targetDir, `project_${Date.now()}.${ext}`);
+
+  try {
+    await createDir(targetDir, { recursive: true });
+  } catch {
+    // directory may already exist
+  }
+
+  const bytes = await readBinaryFile(imagePath);
+  await writeBinaryFile(targetPath, bytes);
+  return targetPath;
 }
 
 function guessMime(path) {
@@ -69,29 +71,48 @@ function guessMime(path) {
     webp: "image/webp",
     gif: "image/gif",
     ico: "image/x-icon",
+    svg: "image/svg+xml",
   };
   return map[ext] || "image/png";
 }
 
-/** Reads a local file from disk and returns it as a base64 data URL, so it can be safely
- * persisted in localStorage (Tauri's asset protocol paths are not stable identifiers). */
+/** Reads a local file from disk and returns it as a base64 data URL. */
 export async function fileToDataUrl(path) {
-  const bytes = await readFile(path);
+  const bytes = await readBinaryFile(path);
   let binary = "";
-  const chunkSize = 8192;
+  const chunkSize = 0x8000;
   for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
   }
-  const base64 = btoa(binary);
-  return `data:${guessMime(path)};base64,${base64}`;
+  return `data:${guessMime(path)};base64,${btoa(binary)}`;
 }
 
-/** Launches VS Code (`code`) pointed at the given project folder. */
+/** Name the components import. Returns null if the image can't be read. */
+export async function imagePathToDataUrl(path) {
+  if (!path) return null;
+  try {
+    return await fileToDataUrl(path);
+  } catch (err) {
+    console.error("imagePathToDataUrl failed:", path, err);
+    return null;
+  }
+}
+
+/** Lists immediate subfolders of rootPath as [{ name, path }], sorted by name. */
+// export async function listSubfolders(rootPath) {
+//   const entries = await readDir(rootPath, { recursive: false });
+//   return entries
+//     .filter((e) => e.children !== undefined && e.children !== null) // dirs only
+//     .map((e) => ({ name: e.name, path: e.path }))
+//     .sort((a, b) => a.name.localeCompare(b.name));
+// }
+
+/** Launches VS Code pointed at the given project folder. */
 export async function openInVSCode(path) {
   return invoke("open_in_vscode", { path });
 }
 
-/** Opens a terminal (with Git CLI available on PATH) inside the given directory. */
+/** Opens a terminal (with Git CLI on PATH) inside the given directory. */
 export async function openGitCli(path) {
   return invoke("open_git_cli", { path });
 }
@@ -104,27 +125,16 @@ export async function openTool(exePath, cwd = null) {
 export async function deleteProjectFolder(path) {
   return invoke("delete_project_folder", { path });
 }
-/** Joins a folder name onto a base path, matching the base path's separator style. */
-function joinPath(base, name) {
-  const sep = base.includes("\\") && !base.includes("/") ? "\\" : "/";
-  const trimmed =
-    base.endsWith("/") || base.endsWith("\\") ? base.slice(0, -1) : base;
-  return `${trimmed}${sep}${name}`;
-}
-
-/** Lists the immediate subfolders of `rootPath`, e.g. every project folder inside
- * a "Projects" directory. Returns [{ name, path }, ...] sorted by name. */
-export async function listSubfolders(rootPath) {
-  const entries = await readDir(rootPath);
-  return entries
-    .filter((entry) => entry.isDirectory)
-    .map((entry) => ({
-      name: entry.name,
-      path: joinPath(rootPath, entry.name),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
 
 export async function openInExplorer(path) {
-  await invoke("open_in_explorer", { path });
+  return invoke("open_in_explorer", { path });
+}
+
+// async function readBinaryFile(path) {
+//   const bytes = await invoke("read_binary_file", { path });
+//   return new Uint8Array(bytes);
+// }
+
+export async function listSubfolders(rootPath) {
+  return invoke("list_subfolders", { rootPath });
 }

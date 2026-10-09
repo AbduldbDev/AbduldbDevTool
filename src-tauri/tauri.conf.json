@@ -1,15 +1,16 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AbduldbDevTool",
-  "version": "0.1.0",
-  "identifier": "dev.abduldb.projectmanager",
+  "$schema": "https://schema.tauri.app/config/1",
+  "package": {
+    "productName": "AbduldbDevTool",
+    "version": "0.1.0"
+  },
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devUrl": "http://localhost:1420",
-    "frontendDist": "../dist"
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
   },
-  "app": {
+  "tauri": {
     "windows": [
       {
         "label": "main",
@@ -23,18 +24,41 @@
         "center": true
       }
     ],
+    "allowlist": {
+      "all": false,
+      "dialog": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": ["**"]
+      },
+
+      "shell": {
+        "open": true
+      }
+    },
     "security": {
       "csp": null
+    },
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "pubkey": "YOUR_EXISTING_PUBLIC_KEY",
+      "endpoints": [
+        "https://github.com/AbduldbDev/AbduldbDevTool/releases/latest/download/latest.json"
+      ]
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "dev.abduldb.projectmanager",
+      "targets": "all",
+      "icon": [
+        "icons/32x32-icon.png",
+        "icons/128x128-icon.png",
+        "icons/128x128@2x-icon.png",
+        "icons/icon-icon.ico"
+      ]
     }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32-icon.png",
-      "icons/128x128-icon.png",
-      "icons/128x128@2x-icon.png",
-      "icons/icon-icon.ico"
-    ]
   }
 }

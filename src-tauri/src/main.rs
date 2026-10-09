@@ -1,13 +1,31 @@
 // Prevents an additional console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use chrono::Utc;
+use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use chrono::Utc;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[derive(Serialize)]
+struct SubFolder {
+    name: String,
+    path: String,
+}
+
 #[tauri::command]
 fn open_in_vscode(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    let result = Command::new("cmd").args(["/C", "code", &path]).spawn();
+    let result = Command::new("cmd")
+        .args(["/C", "code", &path])
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn();
 
     #[cfg(not(target_os = "windows"))]
     let result = Command::new("code").arg(&path).spawn();
@@ -16,7 +34,6 @@ fn open_in_vscode(path: String) -> Result<(), String> {
         .map(|_| ())
         .map_err(|e| format!("Failed to open VS Code: {e}"))
 }
-
 
 #[tauri::command]
 fn delete_project_folder(path: String) -> Result<(), String> {
@@ -28,23 +45,23 @@ fn delete_project_folder(path: String) -> Result<(), String> {
 #[tauri::command]
 fn open_git_cli(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-{
-    use std::path::Path;
+    {
+        use std::path::Path;
 
-    let candidates = [
-        r"C:\Program Files\Git\git-bash.exe",
-        r"C:\Program Files (x86)\Git\git-bash.exe",
-    ];
+        let candidates = [
+            r"C:\Program Files\Git\git-bash.exe",
+            r"C:\Program Files (x86)\Git\git-bash.exe",
+        ];
 
-    let git_bash = candidates
-        .iter()
-        .find(|p| Path::new(p).exists())
-        .ok_or_else(|| {
-            "Git Bash not found. Checked Program Files and Program Files (x86).".to_string()
-        })?;
+        let git_bash = candidates
+            .iter()
+            .find(|p| Path::new(p).exists())
+            .ok_or_else(|| {
+                "Git Bash not found. Checked Program Files and Program Files (x86).".to_string()
+            })?;
 
         Command::new(git_bash)
-            .current_dir(&path)   // set cwd directly, don't rely on --cd
+            .current_dir(&path)
             .spawn()
             .map(|_| ())
             .map_err(|e| format!("Failed to open Git Bash: {e}"))
@@ -97,7 +114,7 @@ fn open_in_explorer(path: String) -> Result<(), String> {
         path
     };
 
-    std::process::Command::new(program)
+    Command::new(program)
         .arg(path)
         .spawn()
         .map_err(|e| e.to_string())?;
@@ -106,30 +123,57 @@ fn open_in_explorer(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn copy_image_to_folder(image_path: String, target_dir: String) -> Result<String, String> {
-    // Ensure target directory exists
     fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
-    
-    // Generate unique filename
-    let filename = format!("project_{}.png", Utc::now().timestamp_millis());
+
+    // Keep the original extension (fall back to png)
+    let ext = PathBuf::from(&image_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_else(|| "png".to_string());
+
+    let filename = format!("project_{}.{}", Utc::now().timestamp_millis(), ext);
     let mut target_path = PathBuf::from(&target_dir);
     target_path.push(&filename);
-    
-    // Copy the image
+
     fs::copy(&image_path, &target_path).map_err(|e| e.to_string())?;
-    
+
     Ok(target_path.to_str().ok_or("Invalid path")?.to_string())
 }
+
+#[tauri::command]
+fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    fs::read(&path).map_err(|e| e.to_string())
+}
+
+/// Lists immediate subfolders of `root_path`, sorted by name.
+#[tauri::command]
+fn list_subfolders(root_path: String) -> Result<Vec<SubFolder>, String> {
+    let mut folders: Vec<SubFolder> = fs::read_dir(&root_path)
+        .map_err(|e| e.to_string())?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().is_dir())
+        .map(|entry| SubFolder {
+            name: entry.file_name().to_string_lossy().to_string(),
+            path: entry.path().to_string_lossy().to_string(),
+        })
+        .collect();
+
+    folders.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(folders)
+}
+
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             open_in_vscode,
             open_git_cli,
             open_tool,
             delete_project_folder,
             open_in_explorer,
-            copy_image_to_folder
+            copy_image_to_folder,
+            read_binary_file,
+            list_subfolders
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

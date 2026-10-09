@@ -5,6 +5,7 @@ import ProjectsView from "./components/ProjectsView.vue";
 import ToolsView from "./components/ToolsView.vue";
 import SettingsView from "./components/SettingsView.vue";
 import { syncAllRootFolders } from "./lib/projectSync.js";
+import UpdateGate from "./components/UpdateGate.vue";
 
 const currentView = ref("projects");
 
@@ -20,14 +21,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="shell">
-    <Sidebar :current-view="currentView" @navigate="navigate" />
-    <main class="content">
-      <ProjectsView v-if="currentView === 'projects'" @navigate="navigate" />
-      <ToolsView v-else-if="currentView === 'tools'" @navigate="navigate" />
-      <SettingsView v-else-if="currentView === 'settings'" @navigate="navigate" />
-    </main>
-  </div>
+  <UpdateGate>
+    <div class="shell">
+      <Sidebar :current-view="currentView" @navigate="navigate" />
+      <main class="content">
+        <ProjectsView v-if="currentView === 'projects'" @navigate="navigate" />
+        <ToolsView v-else-if="currentView === 'tools'" @navigate="navigate" />
+        <SettingsView
+          v-else-if="currentView === 'settings'"
+          @navigate="navigate"
+        />
+      </main>
+    </div>
+  </UpdateGate>
 </template>
 
 <style scoped>
