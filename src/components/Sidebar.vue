@@ -15,7 +15,9 @@ async function launchTool(tool) {
     await openTool(tool.exePath);
   } catch (err) {
     console.error(err);
-    alert(`Couldn't launch "${tool.name}". Check its .exe path in the Tools tab.`);
+    alert(
+      `Couldn't launch "${tool.name}". Check its .exe path in the Tools tab.`,
+    );
   }
 }
 </script>
@@ -23,7 +25,7 @@ async function launchTool(tool) {
 <template>
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">A</div>
+      <div class="brand-mark"><img src="../assets/AbduldbDevWhite.png" /></div>
       <div class="brand-text">
         <h1>AbduldbDev</h1>
         <span>Project Manager</span>
@@ -105,19 +107,11 @@ async function launchTool(tool) {
   padding: 0 6px 20px 6px;
 }
 
-.brand-mark {
-  width: 34px;
-  height: 34px;
+.brand-mark img {
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(155deg, var(--accent-blue), var(--accent-cyan));
-  color: #06090f;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  object-fit: contain;
 }
 
 .brand-text h1 {
@@ -148,7 +142,9 @@ async function launchTool(tool) {
   font-size: 13.5px;
   font-weight: 500;
   text-align: left;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .nav-item:hover {
@@ -202,7 +198,9 @@ async function launchTool(tool) {
   border-radius: var(--radius-sm);
   font-size: 13px;
   text-align: left;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .tool-item:hover {

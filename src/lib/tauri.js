@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile, readDir } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 /** Open a native "select folder" dialog. Returns the chosen path or null. */
 export async function pickFolder() {
@@ -94,4 +95,8 @@ export async function listSubfolders(rootPath) {
       path: joinPath(rootPath, entry.name),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function openInExplorer(path) {
+  await invoke("open_in_explorer", { path });
 }

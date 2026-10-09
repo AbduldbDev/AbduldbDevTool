@@ -80,6 +80,27 @@ fn open_tool(exe_path: String, cwd: Option<String>) -> Result<(), String> {
         .map_err(|e| format!("Failed to launch tool: {e}"))
 }
 
+#[tauri::command]
+fn open_in_explorer(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let program = "explorer";
+    #[cfg(target_os = "macos")]
+    let program = "open";
+    #[cfg(target_os = "linux")]
+    let program = "xdg-open";
+
+    let path = if cfg!(target_os = "windows") {
+        path.replace('/', "\\")
+    } else {
+        path
+    };
+
+    std::process::Command::new(program)
+        .arg(path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -88,7 +109,8 @@ fn main() {
             open_in_vscode,
             open_git_cli,
             open_tool,
-            delete_project_folder
+            delete_project_folder,
+            open_in_explorer 
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,7 +3,7 @@ import { computed } from "vue";
 import {
   FolderGit2,
   FolderCode,
-  Trash2,
+  FolderOpen,
   Folder,
   Pencil,
 } from "lucide-vue-next";
@@ -16,11 +16,10 @@ const props = defineProps({
 const emit = defineEmits([
   "open-vscode",
   "open-git",
-  "delete",
+  "open-explorer",
   "status-change",
   "edit",
 ]);
-
 const statusColors = {
   Active: "var(--accent-green)",
   "In Progress": "var(--accent-cyan)",
@@ -70,11 +69,11 @@ const accent = computed(
         <img src="../assets/git.svg" alt="Git" width="16" height="16" />
       </button>
       <button
-        class="icon-btn danger delete"
-        title="Delete project"
-        @click="emit('delete')"
+        class="icon-btn explorer"
+        title="Open in Explorer"
+        @click="emit('open-explorer')"
       >
-        <Trash2 :size="16" />
+        <FolderOpen :size="16" />
       </button>
       <button class="icon-btn" title="Edit project" @click="emit('edit')">
         <Pencil :size="16" />
@@ -171,7 +170,7 @@ const accent = computed(
   margin-top: auto;
 }
 
-.delete {
+.explorer {
   margin-left: auto;
 }
 </style>

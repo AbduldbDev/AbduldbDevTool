@@ -2,7 +2,7 @@
 import { ref, computed } from "vue";
 import { Plus, FolderKanban, Settings2, Search } from "lucide-vue-next";
 import { useStore } from "../store/useStore.js";
-import { openInVSCode, openGitCli } from "../lib/tauri.js";
+import { openInVSCode, openGitCli, openInExplorer } from "../lib/tauri.js";
 import ProjectCard from "./ProjectCard.vue";
 import AddProjectModal from "./AddProjectModal.vue";
 import EditProjectModal from "./EditProjectModal.vue";
@@ -55,6 +55,14 @@ async function handleOpenGit(project) {
   } catch (err) {
     console.error(err);
     alert(`Couldn't open a terminal for "${project.name}".`);
+  }
+}
+async function handleOpenExplorer(project) {
+  try {
+    await openInExplorer(project.path);
+  } catch (err) {
+    console.error(err);
+    alert(`Couldn't open "${project.name}" in the file explorer.`);
   }
 }
 
@@ -124,7 +132,7 @@ async function onDeleted() {
         :project="project"
         @open-vscode="handleOpenVSCode(project)"
         @open-git="handleOpenGit(project)"
-        @delete="confirmDelete(project)"
+        @open-explorer="handleOpenExplorer(project)"
         @edit="editingProject = project"
         @status-change="(s) => updateProjectStatus(project.id, s)"
       />
